@@ -1,257 +1,135 @@
-import React, {useCallback, useEffect, useRef, useState} from 'react';
+import React, {useCallback, useState} from 'react';
+import {StyleSheet, View} from 'react-native';
 
-import {
-  View,
-  Text,
-  Image,
-  TextInput,
-  FlatList,
-  Pressable,
-  ActivityIndicator,
-  StyleSheet,
-} from 'react-native';
+import ShopButton from '@components/ShopButton';
+import Typography from '@components/Typography';
+import ShopInput from '@components/ShopInput';
 
-import {SafeAreaView} from 'react-native-safe-area-context';
+import {useCountdown} from '@hooks/useCountdown';
+import {useTheme} from '@contexts/ThemeContext';
 
-import {fetchSamplePosts, PostItem} from '@services/productApi';
+import {COLORS, SIZES} from '@constants/theme';
 
 const HomeScreen = () => {
-  // =========================
-  // STATE
-  // =========================
+  const [loading, setLoading] = useState(false);
+  const [coupon, setCoupon] = useState('');
 
-  const [keyword, setKeyword] = useState('');
+  const {timeLeft, isFinished} = useCountdown(60);
 
-  const [posts, setPosts] = useState<PostItem[]>([]);
+  const {colors, isDark, toggleTheme} = useTheme();
 
-  const [loading, setLoading] = useState(true);
-
-  const [error, setError] = useState<string | null>(null);
-
-  // Tránh cập nhật state sau khi component đã unmount
-  const aliveRef = useRef(true);
-
-  // =========================
-  // GỌI API
-  // =========================
-
-  const load = useCallback(async () => {
+  const handleCheckout = useCallback(() => {
     setLoading(true);
-    setError(null);
 
-    try {
-      const data = await fetchSamplePosts();
+    setTimeout(() => {
+      setLoading(false);
 
-      if (aliveRef.current) {
-        setPosts(data);
-      }
-    } catch (e) {
-      if (aliveRef.current) {
-        setError('Không tải được dữ liệu.');
-      }
-    } finally {
-      if (aliveRef.current) {
-        setLoading(false);
-      }
-    }
-  }, []);
-
-  // =========================
-  // USE EFFECT
-  // =========================
-
-  useEffect(() => {
-    aliveRef.current = true;
-
-    load();
-
-    return () => {
-      aliveRef.current = false;
-    };
-  }, [load]);
-
-  // =========================
-  // TÌM KIẾM
-  // =========================
-
-  const filtered = posts.filter(post =>
-    post.title.toLowerCase().includes(keyword.toLowerCase()),
-  );
-
-  // =========================
-  // UI
-  // =========================
+      console.log('Thanh toán thành công!', coupon);
+    }, 2000);
+  }, [coupon]);
 
   return (
-    <SafeAreaView style={styles.safe}>
-      {/* Header */}
+    <View
+      style={[
+        styles.container,
+        {
+          backgroundColor: colors.background,
+        },
+      ]}>
 
-      <View style={styles.header}>
-        <Text style={styles.brand}>ShopAI</Text>
+      <Typography
+        variant="h1"
+        color={colors.text}
+        style={styles.title}>
+        ShopAI UI Kit
+      </Typography>
 
-        <Text style={styles.caption}>
-          Sprint 2 — Core Components + Fetch
-        </Text>
-      </View>
-
-      {/* Banner */}
-
-      <Image
-        source={{
-          uri: 'https://picsum.photos/800/200',
+      <ShopButton
+        title={isDark ? 'Chuyển sang Sáng' : 'Chuyển sang Tối'}
+        onPress={toggleTheme}
+        style={{
+          backgroundColor: colors.primary,
+          marginBottom: 16,
         }}
-        style={styles.banner}
-        resizeMode="cover"
       />
 
-      {/* Search */}
+      <Typography
+        variant="body2"
+        color={colors.textLight}
+        style={styles.countdown}>
+        {isFinished
+          ? 'Đã hết hạn khuyến mãi!'
+          : `Flash sale kết thúc sau: ${timeLeft}s`}
+      </Typography>
 
-      <TextInput
-        value={keyword}
-        onChangeText={setKeyword}
-        placeholder="Tìm theo tiêu đề..."
-        placeholderTextColor="#95A5A6"
-        style={styles.input}
-        autoCapitalize="none"
-      />
-
-      {/* Refresh button */}
-
-      <Pressable
-        onPress={load}
-        style={({pressed}) => [
-          styles.btn,
-          pressed && {opacity: 0.85},
+      <View
+        style={[
+          styles.card,
+          {
+            backgroundColor: colors.surface,
+          },
         ]}>
-        <Text style={styles.btnText}>Làm mới danh sách</Text>
-      </Pressable>
 
-      {/* Loading */}
+        <Typography
+          variant="h2"
+          color={colors.primary}
+          style={styles.price}>
+          Tổng tiền: 15.000.000đ
+        </Typography>
 
-      {loading && (
-        <ActivityIndicator
-          style={{marginTop: 24}}
-          color="#FF4D4F"
+        <ShopInput
+          label="Mã giảm giá"
+          placeholder="Nhập mã (VD: SHOPAI10)"
+          value={coupon}
+          onChangeText={setCoupon}
+          autoCapitalize="characters"
         />
-      )}
 
-      {/* Error */}
-
-      {error && <Text style={styles.error}>{error}</Text>}
-
-      {/* List */}
-
-      {!loading && !error && (
-        <FlatList
-          data={filtered}
-          keyExtractor={item => String(item.id)}
-          contentContainerStyle={{paddingBottom: 24}}
-          ListEmptyComponent={
-            <Text style={styles.empty}>
-              Không có kết quả cho từ khóa này
-            </Text>
-          }
-          renderItem={({item}) => (
-            <View style={styles.card}>
-              <Text style={styles.cardTitle} numberOfLines={2}>
-                {item.title}
-              </Text>
-
-              <Text style={styles.cardBody} numberOfLines={2}>
-                {item.body}
-              </Text>
-            </View>
-          )}
+        <ShopButton
+          title="Xác nhận thanh toán"
+          onPress={handleCheckout}
+          isLoading={loading}
+          disabled={isFinished}
         />
-      )}
-    </SafeAreaView>
+      </View>
+    </View>
   );
 };
 
-// =========================
-// STYLES
-// =========================
-
 const styles = StyleSheet.create({
-  safe: {
+  container: {
     flex: 1,
-    backgroundColor: '#F5F5F5',
+    justifyContent: 'center',
+    padding: SIZES.padding,
   },
 
-  header: {
-    padding: 16,
-    backgroundColor: '#fff',
+  title: {
+    textAlign: 'center',
+    marginBottom: 12,
   },
 
-  brand: {
-    fontSize: 28,
-    fontWeight: '800',
-    color: '#FF4D4F',
-  },
-
-  caption: {
-    color: '#7F8C8D',
-    marginTop: 4,
-  },
-
-  banner: {
-    width: '100%',
-    height: 120,
-    marginTop: 8,
-  },
-
-  input: {
-    margin: 16,
-    height: 48,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: '#E8E8E8',
-    paddingHorizontal: 16,
-    backgroundColor: '#fff',
-  },
-
-  btn: {
-    marginHorizontal: 16,
-    marginBottom: 8,
-    backgroundColor: '#FF4D4F',
-    paddingVertical: 12,
-    borderRadius: 12,
-    alignItems: 'center',
-  },
-
-  btnText: {
-    color: '#fff',
-    fontWeight: '600',
+  countdown: {
+    textAlign: 'center',
+    marginBottom: 16,
   },
 
   card: {
-    marginHorizontal: 16,
-    marginTop: 10,
-    padding: 14,
-    backgroundColor: '#fff',
-    borderRadius: 12,
+    padding: 20,
+    borderRadius: SIZES.radius,
+
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.1,
+    shadowRadius: 10,
+    elevation: 5,
   },
 
-  cardTitle: {
-    fontWeight: '700',
-    color: '#2C3E50',
-    marginBottom: 6,
-  },
-
-  cardBody: {
-    color: '#7F8C8D',
-  },
-
-  error: {
-    color: '#FF0000',
+  price: {
+    marginBottom: 20,
     textAlign: 'center',
-    marginTop: 16,
-  },
-
-  empty: {
-    textAlign: 'center',
-    color: '#95A5A6',
-    marginTop: 24,
   },
 });
 
